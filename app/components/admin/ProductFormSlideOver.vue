@@ -27,6 +27,8 @@ const supabase = useSupabaseClient()
 const isSaving = ref(false)
 const isUploading = ref(false)
 const isGeneratingCaption = ref(false)
+const isCopiedTiktok = ref(false)
+const isCopiedShopee = ref(false)
 const imageFile = ref<File | null>(null)
 const errors = ref<Record<string, string>>({})
 const globalError = ref('')
@@ -40,7 +42,8 @@ const form = ref({
   image_url: '',
   affiliate_url: '',
   gdrive_link: '',
-  ai_caption: '',
+  ai_caption_tiktok: '',
+  ai_caption_shopee: '',
   short_description: '',
   tags: '',
   is_active: true,
@@ -55,7 +58,8 @@ const schema = z.object({
   image_url: z.string().url("Must be a valid URL").or(z.literal('')).optional().nullable(),
   affiliate_url: z.string().url("Must be a valid URL").or(z.literal('')).optional().nullable(),
   gdrive_link: z.string().url('Invalid URL').or(z.literal('')),
-  ai_caption: z.string().optional(),
+  ai_caption_tiktok: z.string().optional(),
+  ai_caption_shopee: z.string().optional(),
   short_description: z.string().optional().nullable(),
   tags: z.string().optional().nullable(),
   is_active: z.boolean(),
@@ -95,12 +99,13 @@ watch(() => props.isOpen, (isOpen) => {
         ...props.product, 
         tags: props.product.tags ? props.product.tags.join(', ') : '',
         gdrive_link: props.product.gdrive_link || '',
-        ai_caption: props.product.ai_caption || ''
+        ai_caption_tiktok: props.product.ai_caption_tiktok || '',
+        ai_caption_shopee: props.product.ai_caption_shopee || ''
       }
     } else {
       form.value = {
         title: '', slug: '', category: '', price_text: '', image_url: '', 
-        affiliate_url: '', gdrive_link: '', ai_caption: '', short_description: '', tags: '', is_active: true, sort_order: 0
+        affiliate_url: '', gdrive_link: '', ai_caption_tiktok: '', ai_caption_shopee: '', short_description: '', tags: '', is_active: true, sort_order: 0
       }
     }
   }
@@ -143,20 +148,32 @@ const generateCaption = async () => {
       body: { title, short_description, price_text, category }
     })
     
-    form.value.ai_caption = response.caption
-    addToast({ type: 'success', message: 'Caption generated with AI!' })
+    form.value.ai_caption_tiktok = response.caption_tiktok
+    form.value.ai_caption_shopee = response.caption_shopee
+    addToast({ type: 'success', message: 'Captions generated with AI!' })
   } catch (err: any) {
-    globalError.value = err.data?.message || 'Failed to generate caption'
-    addToast({ type: 'error', message: 'Failed to generate caption' })
+    globalError.value = err.data?.message || 'Failed to generate captions'
+    addToast({ type: 'error', message: 'Failed to generate captions' })
   } finally {
     isGeneratingCaption.value = false
   }
 }
 
-const copyCaption = () => {
-  if (form.value.ai_caption) {
-    navigator.clipboard.writeText(form.value.ai_caption)
-    addToast({ type: 'success', message: 'Caption copied to clipboard!' })
+const copyTiktokCaption = () => {
+  if (form.value.ai_caption_tiktok) {
+    navigator.clipboard.writeText(form.value.ai_caption_tiktok)
+    isCopiedTiktok.value = true
+    setTimeout(() => isCopiedTiktok.value = false, 2000)
+    addToast({ type: 'success', message: 'TikTok caption copied!' })
+  }
+}
+
+const copyShopeeCaption = () => {
+  if (form.value.ai_caption_shopee) {
+    navigator.clipboard.writeText(form.value.ai_caption_shopee)
+    isCopiedShopee.value = true
+    setTimeout(() => isCopiedShopee.value = false, 2000)
+    addToast({ type: 'success', message: 'Shopee caption copied!' })
   }
 }
 
@@ -362,21 +379,45 @@ const save = async () => {
                         </div>
 
                         <!-- AI Caption Generator -->
-                        <div class="space-y-1.5 p-4 bg-primary-50/50 rounded-xl border border-primary-100">
-                          <div class="flex items-center justify-between mb-2">
+                        <div class="space-y-4 p-4 bg-primary-50/50 rounded-xl border border-primary-100">
+                          <div class="flex items-center justify-between">
                             <label class="block text-sm font-semibold text-slate-700">Auto Caption & Hashtags</label>
-                            <div class="flex items-center gap-2">
-                              <button @click.prevent="generateCaption" :disabled="isGeneratingCaption" class="text-xs font-semibold px-2 py-1.5 bg-primary-600 text-white hover:bg-primary-700 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50">
-                                <Loader2 v-if="isGeneratingCaption" class="w-3.5 h-3.5 animate-spin" />
-                                <Wand2 v-else class="w-3.5 h-3.5" /> 
-                                {{ isGeneratingCaption ? 'Generating...' : 'Generate' }}
-                              </button>
-                              <button v-if="form.ai_caption" @click.prevent="copyCaption" class="text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer">
-                                <Copy class="w-3.5 h-3.5" /> Copy
+                            <button @click.prevent="generateCaption" :disabled="isGeneratingCaption" class="text-xs font-semibold px-2 py-1.5 bg-primary-600 text-white hover:bg-primary-700 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                              <Loader2 v-if="isGeneratingCaption" class="w-3.5 h-3.5 animate-spin" />
+                              <Wand2 v-else class="w-3.5 h-3.5" /> 
+                              {{ isGeneratingCaption ? 'Generating...' : 'Generate' }}
+                            </button>
+                          </div>
+                          
+                          <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                              <label class="block text-xs font-medium text-slate-600">TikTok / Instagram</label>
+                              <button v-if="form.ai_caption_tiktok" @click.prevent="copyTiktokCaption" class="text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer w-24 justify-center">
+                                <template v-if="isCopiedTiktok">
+                                  <CheckCircle2 class="w-3.5 h-3.5 text-green-500" /> <span class="text-green-600">Copied!</span>
+                                </template>
+                                <template v-else>
+                                  <Copy class="w-3.5 h-3.5" /> Copy
+                                </template>
                               </button>
                             </div>
+                            <UiTextarea v-model="form.ai_caption_tiktok" :rows="4" placeholder="Klik Generate untuk membuat caption TikTok otomatis..." />
                           </div>
-                          <UiTextarea v-model="form.ai_caption" :rows="6" placeholder="Klik Generate untuk membuat caption otomatis berdasarkan judul dan deskripsi..." />
+
+                          <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                              <label class="block text-xs font-medium text-slate-600">Shopee (Max 150 chars)</label>
+                              <button v-if="form.ai_caption_shopee" @click.prevent="copyShopeeCaption" class="text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer w-24 justify-center">
+                                <template v-if="isCopiedShopee">
+                                  <CheckCircle2 class="w-3.5 h-3.5 text-green-500" /> <span class="text-green-600">Copied!</span>
+                                </template>
+                                <template v-else>
+                                  <Copy class="w-3.5 h-3.5" /> Copy
+                                </template>
+                              </button>
+                            </div>
+                            <UiTextarea v-model="form.ai_caption_shopee" :rows="3" placeholder="Klik Generate untuk membuat caption Shopee otomatis..." />
+                          </div>
                         </div>
                       </div>
                     </div>

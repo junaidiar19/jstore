@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
 
   const { title, short_description, price_text, category } = body
 
-  const prompt = `You are a professional social media manager for an e-commerce affiliate platform. Write an engaging and casual caption for Instagram/TikTok promoting the following product.
+  const promptTiktok = `You are a professional social media manager for an e-commerce affiliate platform. Write an engaging and casual caption for Instagram/TikTok promoting the following product.
 
 Product Name: ${title}
 Short Description: ${short_description || 'No description provided'}
@@ -24,25 +24,50 @@ Rules:
 6. DO NOT include the hashtag #jstore under any circumstances.
 7. Output ONLY the caption text, no extra markdown formatting or explanations. Write in Indonesian.`
 
-  try {
-    const response = await $fetch<any>('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${config.openRouterKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: {
-        model: 'openrouter/free',
-        messages: [
-          { role: 'user', content: prompt }
-        ]
-      }
-    })
+  const promptShopee = `You are a professional social media manager for an e-commerce affiliate platform. Write an engaging and casual caption for Shopee Affiliate promoting the following product.
 
-    const caption = response.choices?.[0]?.message?.content || ''
-    
+Product Name: ${title}
+Short Description: ${short_description || 'No description provided'}
+Price: Rp ${price_text || 'Not specified'}
+Category: ${category}
+
+Rules:
+1. MAX 150 CHARACTERS. THIS IS EXTREMELY STRICT. If you exceed 150 characters, it will fail.
+2. Include emojis.
+3. Keep it punchy and persuasive.
+4. Include 1-2 short hashtags based on the product. ALL hashtags MUST be entirely in lowercase.
+5. DO NOT include the hashtag #jstore under any circumstances.
+6. Output ONLY the caption text, no extra markdown formatting or explanations. Write in Indonesian.`
+
+  try {
+    const [tiktokRes, shopeeRes] = await Promise.all([
+      $fetch<any>('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openRouterKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          model: 'openrouter/free',
+          messages: [{ role: 'user', content: promptTiktok }]
+        }
+      }),
+      $fetch<any>('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.openRouterKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: {
+          model: 'openrouter/free',
+          messages: [{ role: 'user', content: promptShopee }]
+        }
+      })
+    ])
+
     return {
-      caption: caption.trim()
+      caption_tiktok: tiktokRes.choices?.[0]?.message?.content?.trim() || '',
+      caption_shopee: shopeeRes.choices?.[0]?.message?.content?.trim() || ''
     }
   } catch (err: any) {
     console.error('OpenRouter API Error:', err)
