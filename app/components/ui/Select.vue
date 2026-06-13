@@ -14,14 +14,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  type: {
-    type: String,
-    default: 'text'
-  },
-  placeholder: {
-    type: String,
-    default: ''
-  },
   error: {
     type: String,
     default: ''
@@ -30,7 +22,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const id = computed(() => `input-${Math.random().toString(36).substring(2, 9)}`)
+const id = computed(() => `select-${Math.random().toString(36).substring(2, 9)}`)
 </script>
 
 <template>
@@ -42,19 +34,24 @@ const id = computed(() => `input-${Math.random().toString(36).substring(2, 9)}`)
       <div v-if="$slots.icon" class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
         <slot name="icon" />
       </div>
-      <input
+      <select
         v-bind="$attrs"
         :id="id"
-        :type="type"
         :value="modelValue"
-        :placeholder="placeholder"
-        @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-        class="w-full rounded-lg border bg-white px-3 py-3 text-sm text-slate-900 transition-100 transition-colors focus:outline-none focus:ring-3 focus:ring-primary-200 disabled:cursor-not-allowed disabled:opacity-50"
+        @change="$emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+        class="w-full rounded-lg border bg-white px-3 py-3 text-sm text-slate-900 transition-100 transition-colors focus:outline-none focus:ring-3 focus:ring-primary-200 appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         :class="[
           error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-slate-300 focus:border-primary-500',
           $slots.icon ? 'pl-10' : ''
         ]"
-      />
+      >
+        <slot />
+      </select>
+      <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-400">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+        </svg>
+      </div>
     </div>
     <span v-if="error" class="text-xs text-red-500">{{ error }}</span>
   </div>

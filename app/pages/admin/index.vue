@@ -1,36 +1,37 @@
 <script setup lang="ts">
-const supabase = useSupabaseClient()
-const router = useRouter()
-const user = useSupabaseUser()
-
-const handleLogout = async () => {
-  await supabase.auth.signOut()
-  router.push('/login')
-}
+definePageMeta({
+  layout: 'admin'
+})
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 p-8">
-    <UiCard class="max-w-4xl mx-auto border-none shadow-xl shadow-slate-200/50">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <div class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-blue-600 text-white shadow-md shadow-blue-200">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-store"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>
-            </div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">JStore Admin</h1>
+  <div class="p-8">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-900">Dashboard</h1>
+      <p class="text-slate-500 mt-1">Welcome back to JStore Admin</p>
+    </div>
+
+    <!-- Stats Overview (Placeholder for now) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <UiCard class="border-none shadow-sm shadow-slate-200/50">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
           </div>
-          <div class="flex items-center gap-4">
-            <span class="text-sm font-medium text-slate-600">{{ user?.email }}</span>
-            <UiButton @click="handleLogout" variant="ghost">Logout</UiButton>
+          <div>
+            <p class="text-sm font-medium text-slate-500">Total Products</p>
+            <p class="text-2xl font-bold text-slate-900">0</p>
           </div>
         </div>
-      </template>
-      
-      <div class="p-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50/50 flex flex-col items-center justify-center text-slate-500">
-        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package-open text-slate-300 mb-4"><path d="M12 22v-9"/><path d="M15.17 2.38a2 2 0 0 0-6.34 0l-5.6 4.86a2 2 0 0 0-.73 1.63v10.1A2 2 0 0 0 4.5 21h15a2 2 0 0 0 2-2v-10.1a2 2 0 0 0-.73-1.63z"/><path d="M2.5 8 12 11l9.5-3"/><path d="M15 11l-3 3-3-3"/></svg>
-        <p class="font-medium">Product Listing</p>
-        <p class="text-sm">Produk akan ditampilkan di sini (Phase 3)</p>
+      </UiCard>
+    </div>
+
+    <!-- Quick Actions / Info -->
+    <UiCard class="border-none shadow-sm shadow-slate-200/50">
+      <div class="p-8 flex flex-col items-center justify-center text-slate-500 min-h-[300px]">
+        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-bar-chart-3 text-slate-300 mb-4"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+        <p class="font-medium text-slate-900">Dashboard Metrics</p>
+        <p class="text-sm text-center max-w-sm mt-2">Ini adalah halaman dashboard admin utama. Beralih ke menu Product untuk mengelola data produk Anda.</p>
       </div>
     </UiCard>
   </div>

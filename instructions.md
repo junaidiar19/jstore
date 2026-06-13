@@ -19,6 +19,8 @@ The following are the established best practices and "skills" to be used when de
 3. **Styling & Theme**:
    - Modern, soft blue theme (Trello-like, premium feel).
    - Use Tailwind CSS v4 effectively (gradients, smooth transitions, glassmorphism if applicable).
+   - **Soft Hovers**: ALWAYS use subtle background color changes for hover effects (e.g., `hover:bg-slate-50 transition-colors` for light areas, or `hover:bg-white/5 transition-colors` for dark areas). Avoid dramatic transforms, scales, or heavy shadows on hover.
+   - **Clickable Elements**: ALWAYS add the `cursor-pointer` class to any element that is interactive or clickable (buttons, links, dropdowns).
 4. **State Management**:
    - Use Pinia for complex client-side state.
    - Rely on `useSupabaseUser()` and `useSupabaseClient()` for auth state.
