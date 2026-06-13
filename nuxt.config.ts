@@ -15,9 +15,9 @@ export default defineNuxtConfig({
   ],
   supabase: {
     redirectOptions: {
-      login: '/login',
+      login: '/banjarmasin',
       callback: '/confirm',
-      exclude: ['/login', '/']
+      exclude: ['/banjarmasin', '/']
     }
   },
   vite: {

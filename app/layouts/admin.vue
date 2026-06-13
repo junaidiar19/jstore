@@ -29,7 +29,7 @@ useHead({
 
 const handleLogout = async () => {
   await supabase.auth.signOut()
-  router.push('/login')
+  router.push('/banjarmasin')
 }
 </script>
 
@@ -70,10 +70,10 @@ const handleLogout = async () => {
 
       <!-- Menu -->
       <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-        <UiNavLink to="/admin" label="Dashboard">
+        <UiNavLink to="/kalimantan" label="Dashboard">
           <template #icon><LayoutDashboard class="w-5 h-5" /></template>
         </UiNavLink>
-        <UiNavLink to="/admin/products" label="Product">
+        <UiNavLink to="/kalimantan/products" label="Product">
           <template #icon><Package class="w-5 h-5" /></template>
         </UiNavLink>
         <UiNavLink to="/" label="Link Website" target="_blank">
