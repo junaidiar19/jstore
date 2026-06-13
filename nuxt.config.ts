@@ -14,11 +14,7 @@ export default defineNuxtConfig({
     '@vueuse/nuxt'
   ],
   supabase: {
-    redirectOptions: {
-      login: '/banjarmasin',
-      callback: '/confirm',
-      exclude: ['/banjarmasin', '/']
-    }
+    redirect: false
   },
   vite: {
     plugins: [
