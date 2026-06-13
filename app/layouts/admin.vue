@@ -18,6 +18,15 @@ const router = useRouter()
 
 const isSidebarOpen = ref(true)
 
+useHead({
+  titleTemplate: '%s - JStore Admin',
+  title: 'Dashboard',
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow' },
+    { name: 'description', content: 'Admin dashboard for JStore affiliate product management.' }
+  ]
+})
+
 const handleLogout = async () => {
   await supabase.auth.signOut()
   router.push('/login')

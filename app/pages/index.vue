@@ -9,6 +9,21 @@ definePageMeta({
   layout: false
 })
 
+useHead({
+  title: 'JStore - Temukan Produk Afiliasi Pilihan Terbaik',
+  meta: [
+    { name: 'description', content: 'JStore adalah platform kurasi produk afiliasi terbaik. Temukan berbagai macam produk berkualitas dengan harga terbaik dari berbagai kategori.' },
+    { name: 'keywords', content: 'jstore, produk afiliasi, rekomendasi produk, belanja online, kurasi produk' },
+    { property: 'og:title', content: 'JStore - Temukan Produk Afiliasi Pilihan Terbaik' },
+    { property: 'og:description', content: 'JStore adalah platform kurasi produk afiliasi terbaik. Temukan berbagai macam produk berkualitas dengan harga terbaik dari berbagai kategori.' },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:site_name', content: 'JStore' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: 'JStore - Produk Afiliasi Terbaik' },
+    { name: 'twitter:description', content: 'Temukan berbagai macam produk berkualitas dengan harga terbaik di JStore.' }
+  ]
+})
+
 const supabase = useSupabaseClient()
 const { addToast } = useToast()
 
