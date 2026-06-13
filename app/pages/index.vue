@@ -4,6 +4,7 @@ import { Search, Filter, ExternalLink, Share2, Check, Store, X } from 'lucide-vu
 import { useIntersectionObserver } from '@vueuse/core'
 import { Dialog, DialogPanel, DialogTitle, TransitionRoot, TransitionChild } from '@headlessui/vue'
 import { useToast } from '~/composables/useToast'
+import ProductDetailModal from '~/components/ProductDetailModal.vue'
 
 definePageMeta({
   layout: false
@@ -41,6 +42,15 @@ const perPage = ref(12)
 
 const isFilterDrawerOpen = ref(false)
 const loadMoreRef = ref(null)
+
+const isDetailModalOpen = ref(false)
+const selectedProductId = ref<string | null>(null)
+
+const openProductDetail = (id: string) => {
+  selectedProductId.value = id
+  isDetailModalOpen.value = true
+  trackEvent('click', id)
+}
 
 const trackEvent = async (eventType: string, productId?: string, query?: string) => {
   try {
@@ -250,7 +260,8 @@ const shareProduct = async (product: any) => {
         <div 
           v-for="product in products" 
           :key="product.id"
-          class="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 overflow-hidden transition-all duration-300 group flex flex-col"
+          @click="openProductDetail(product.id)"
+          class="bg-white rounded-2xl shadow-sm hover:shadow-xl border border-slate-100 overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
         >
           <!-- Image -->
           <div class="relative aspect-square w-full bg-slate-100 overflow-hidden shrink-0">
@@ -269,12 +280,12 @@ const shareProduct = async (product: any) => {
             <h3 class="font-bold text-slate-900 line-clamp-1 mb-1 text-sm sm:text-base group-hover:text-primary-600 transition-colors" :title="product.title">{{ product.title }}</h3>
             <p class="text-xs sm:text-sm text-slate-500 line-clamp-2 mb-3 sm:mb-4 flex-1" :title="product.short_description">{{ product.short_description }}</p>
             
-            <div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-3 mt-auto pt-3 sm:pt-4 border-t border-slate-100">
+            <div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-3 mt-auto pt-3 sm:pt-4 border-t border-slate-100" @click.stop>
               <div class="flex items-center gap-2 w-full">
-                <a @click="trackEvent('click', product.id)" :href="product.affiliate_url" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center flex-1 gap-1.5 px-3 py-2 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                <button @click.prevent="openProductDetail(product.id)" class="flex items-center justify-center flex-1 gap-1.5 px-3 py-2 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm cursor-pointer">
                   Detail <ExternalLink class="w-3.5 h-3.5 hidden sm:block" />
-                </a>
-                <button @click="shareProduct(product)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer focus:outline-none group/btn shrink-0" title="Share Product">
+                </button>
+                <button @click.stop="shareProduct(product)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer focus:outline-none group/btn shrink-0" title="Share Product">
                   <Check v-if="copiedLinkId === product.id" class="w-4 h-4 text-emerald-600" />
                   <Share2 v-else class="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                 </button>
@@ -352,6 +363,12 @@ const shareProduct = async (product: any) => {
         </div>
       </Dialog>
     </TransitionRoot>
+
+    <ProductDetailModal 
+      :is-open="isDetailModalOpen" 
+      :product-id="selectedProductId" 
+      @close="isDetailModalOpen = false" 
+    />
   </div>
 </template>
 
