@@ -282,9 +282,9 @@ const shareProduct = async (product: any) => {
             
             <div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-3 mt-auto pt-3 sm:pt-4 border-t border-slate-100" @click.stop>
               <div class="flex items-center gap-2 w-full">
-                <button @click.prevent="openProductDetail(product.id)" class="flex items-center justify-center flex-1 gap-1.5 px-3 py-2 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm cursor-pointer">
-                  Detail <ExternalLink class="w-3.5 h-3.5 hidden sm:block" />
-                </button>
+                <a @click="trackEvent('click', product.id)" :href="product.affiliate_url" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center flex-1 gap-1.5 px-3 py-2 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                  Beli <ExternalLink class="w-3.5 h-3.5 hidden sm:block" />
+                </a>
                 <button @click.stop="shareProduct(product)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer focus:outline-none group/btn shrink-0" title="Share Product">
                   <Check v-if="copiedLinkId === product.id" class="w-4 h-4 text-emerald-600" />
                   <Share2 v-else class="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
