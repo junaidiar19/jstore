@@ -42,6 +42,20 @@ const perPage = ref(12)
 const isFilterDrawerOpen = ref(false)
 const loadMoreRef = ref(null)
 
+const trackEvent = async (eventType: string, productId?: string, query?: string) => {
+  try {
+    // @ts-expect-error - RPC types might not be generated yet
+    await supabase.rpc('track_event', {
+      p_event_type: eventType,
+      p_product_id: productId || null,
+      p_search_query: query || null,
+      p_session_id: null
+    })
+  } catch (err) {
+    console.error('Failed to track event', err)
+  }
+}
+
 let searchTimeout: ReturnType<typeof setTimeout>
 const handleSearch = () => {
   clearTimeout(searchTimeout)
@@ -50,6 +64,9 @@ const handleSearch = () => {
     page.value = 1
     hasMore.value = true
     products.value = []
+    if (searchQuery.value) {
+      trackEvent('search', undefined, searchQuery.value)
+    }
     fetchProducts()
   }, 300)
 }
@@ -130,6 +147,7 @@ const shareProduct = async (product: any) => {
     } catch (err) {
       console.log('Share cancelled or failed', err)
     }
+    trackEvent('copy', product.id)
   } else if (product.affiliate_url) {
     navigator.clipboard.writeText(product.affiliate_url)
     copiedLinkId.value = product.id
@@ -137,6 +155,7 @@ const shareProduct = async (product: any) => {
     setTimeout(() => {
       copiedLinkId.value = null
     }, 2000)
+    trackEvent('copy', product.id)
   }
 }
 </script>
@@ -166,7 +185,7 @@ const shareProduct = async (product: any) => {
         </UiInput>
 
         <!-- Filter Icon (Mobile/Desktop) -->
-        <button @click="isFilterDrawerOpen = true" class="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors focus:outline-none shrink-0 relative">
+        <button @click="isFilterDrawerOpen = true" class="p-2 text-slate-500 hover:text-primary-600 hover:bg-primary-50 rounded-full transition-colors focus:outline-none shrink-0 relative cursor-pointer">
           <Filter class="w-5 h-5" />
           <span v-if="selectedCategory" class="absolute top-1 right-1 w-2 h-2 bg-primary-500 rounded-full border border-white"></span>
         </button>
@@ -250,17 +269,15 @@ const shareProduct = async (product: any) => {
             <h3 class="font-bold text-slate-900 line-clamp-1 mb-1 text-sm sm:text-base group-hover:text-primary-600 transition-colors" :title="product.title">{{ product.title }}</h3>
             <p class="text-xs sm:text-sm text-slate-500 line-clamp-2 mb-3 sm:mb-4 flex-1" :title="product.short_description">{{ product.short_description }}</p>
             
-            <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-3 mt-auto pt-3 sm:pt-4 border-t border-slate-100">
-              <span class="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight whitespace-nowrap">Rp {{ product.price_text }}</span>
-              
-              <div class="flex items-center gap-1.5 sm:gap-2 flex-1 justify-end min-w-[120px]">
-                <button @click="shareProduct(product)" class="p-1.5 sm:p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer focus:outline-none group/btn shrink-0" title="Share Product">
+            <div class="flex flex-wrap items-center justify-end gap-x-2 gap-y-3 mt-auto pt-3 sm:pt-4 border-t border-slate-100">
+              <div class="flex items-center gap-2 w-full">
+                <a @click="trackEvent('click', product.id)" :href="product.affiliate_url" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center flex-1 gap-1.5 px-3 py-2 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                  Detail <ExternalLink class="w-3.5 h-3.5 hidden sm:block" />
+                </a>
+                <button @click="shareProduct(product)" class="p-2 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors cursor-pointer focus:outline-none group/btn shrink-0" title="Share Product">
                   <Check v-if="copiedLinkId === product.id" class="w-4 h-4 text-emerald-600" />
                   <Share2 v-else class="w-4 h-4 group-hover/btn:scale-110 transition-transform" />
                 </button>
-                <a :href="product.affiliate_url" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center flex-1 sm:flex-none gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-primary-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm shrink-0">
-                  Visit <ExternalLink class="w-3.5 h-3.5 hidden sm:block" />
-                </a>
               </div>
             </div>
           </div>
