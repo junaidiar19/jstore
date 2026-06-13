@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, Tag, Image as ImageIcon, Package, Search, ChevronLe
 import { ref, onMounted, computed, watch } from 'vue'
 
 import AdminProductFormSlideOver from '~/components/admin/ProductFormSlideOver.vue'
+import { useToast } from '~/composables/useToast'
 
 definePageMeta({
   layout: 'admin'
@@ -11,6 +12,7 @@ definePageMeta({
 const supabase = useSupabaseClient()
 const products = ref<any[]>([])
 const isLoading = ref(true)
+const { addToast } = useToast()
 
 // Pagination & Filter State
 const searchInput = ref('')
@@ -114,6 +116,7 @@ const copyToClipboard = (product: any) => {
   if (product.affiliate_url) {
     navigator.clipboard.writeText(product.affiliate_url)
     copiedLinkId.value = product.id
+    addToast({ type: 'success', message: 'Affiliate link copied!' })
     setTimeout(() => {
       copiedLinkId.value = null
     }, 2000)
@@ -127,6 +130,9 @@ const toggleActiveStatus = async (product: any) => {
   const { error } = await supabase.from('products').update({ is_active: newStatus }).eq('id', product.id)
   if (!error) {
     product.is_active = newStatus
+    addToast({ type: 'success', message: `Product ${newStatus ? 'activated' : 'deactivated'} successfully` })
+  } else {
+    addToast({ type: 'error', message: 'Failed to update product status' })
   }
   isToggling.value = null
 }

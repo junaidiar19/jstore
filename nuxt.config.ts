@@ -7,7 +7,8 @@ export default defineNuxtConfig({
   css: ['./app/assets/css/main.css'],
   modules: [
     '@nuxtjs/supabase',
-    '@pinia/nuxt'
+    '@pinia/nuxt',
+    '@vueuse/nuxt'
   ],
   supabase: {
     redirectOptions: {
