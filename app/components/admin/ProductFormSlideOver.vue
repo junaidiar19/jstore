@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { z } from 'zod'
-import { X, Upload, Loader2, Image as ImageIcon } from 'lucide-vue-next'
+import { X, Upload, Loader2, CheckCircle2, Image as ImageIcon, Copy, Wand2, HardDrive } from 'lucide-vue-next'
+import UiInput from '~/components/ui/Input.vue'
+import UiSelect from '~/components/ui/Select.vue'
+import UiTextarea from '~/components/ui/Textarea.vue'
+import { useToast } from '~/composables/useToast'
 import {
   Dialog,
   DialogPanel,
@@ -17,12 +21,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['close', 'saved'])
+const { addToast } = useToast()
 
 const supabase = useSupabaseClient()
 const isSaving = ref(false)
 const isUploading = ref(false)
+const isGeneratingCaption = ref(false)
+const imageFile = ref<File | null>(null)
 const errors = ref<Record<string, string>>({})
 const globalError = ref('')
+const activeTab = ref('public')
 
 const form = ref({
   title: '',
@@ -31,6 +39,8 @@ const form = ref({
   price_text: '',
   image_url: '',
   affiliate_url: '',
+  gdrive_link: '',
+  ai_caption: '',
   short_description: '',
   tags: '',
   is_active: true,
@@ -40,10 +50,12 @@ const form = ref({
 const schema = z.object({
   title: z.string().min(1, "Title is required"),
   slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Invalid slug format (lowercase letters, numbers, and dashes only)"),
-  category: z.string().optional().nullable(),
+  category: z.string().min(1, 'Category is required'),
   price_text: z.string().optional().nullable(),
   image_url: z.string().url("Must be a valid URL").or(z.literal('')).optional().nullable(),
   affiliate_url: z.string().url("Must be a valid URL").or(z.literal('')).optional().nullable(),
+  gdrive_link: z.string().url('Invalid URL').or(z.literal('')),
+  ai_caption: z.string().optional(),
   short_description: z.string().optional().nullable(),
   tags: z.string().optional().nullable(),
   is_active: z.boolean(),
@@ -77,52 +89,80 @@ watch(() => props.isOpen, (isOpen) => {
   if (isOpen) {
     errors.value = {}
     globalError.value = ''
+    activeTab.value = 'public'
     if (props.product) {
       form.value = { 
         ...props.product, 
-        tags: props.product.tags ? props.product.tags.join(', ') : '' 
+        tags: props.product.tags ? props.product.tags.join(', ') : '',
+        gdrive_link: props.product.gdrive_link || '',
+        ai_caption: props.product.ai_caption || ''
       }
     } else {
       form.value = {
         title: '', slug: '', category: '', price_text: '', image_url: '', 
-        affiliate_url: '', short_description: '', tags: '', is_active: true, sort_order: 0
+        affiliate_url: '', gdrive_link: '', ai_caption: '', short_description: '', tags: '', is_active: true, sort_order: 0
       }
     }
   }
 })
 
 const handleFileUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+  const e = event as any
+  if (e.target.files && e.target.files[0]) {
+    imageFile.value = e.target.files[0]
+    
+    isUploading.value = true
+    const file = imageFile.value
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `${fileName}`
 
-  isUploading.value = true
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
-  const filePath = `${fileName}`
+    const { error: uploadError } = await supabase.storage
+      .from('products')
+      .upload(filePath, file)
 
-  const { error: uploadError } = await supabase.storage
-    .from('products')
-    .upload(filePath, file)
+    if (uploadError) {
+      globalError.value = 'Failed to upload image'
+      isUploading.value = false
+      return
+    }
 
-  if (uploadError) {
-    console.error('Upload error', uploadError)
-    globalError.value = 'Failed to upload image'
+    const { data } = supabase.storage.from('products').getPublicUrl(filePath)
+    form.value.image_url = data.publicUrl
     isUploading.value = false
-    return
   }
+}
 
-  const { data } = supabase.storage.from('products').getPublicUrl(filePath)
-  form.value.image_url = data.publicUrl
-  isUploading.value = false
+const generateCaption = async () => {
+  try {
+    isGeneratingCaption.value = true
+    const { title, short_description, price_text, category } = form.value
+    
+    const response = await $fetch('/api/generate-caption', {
+      method: 'POST',
+      body: { title, short_description, price_text, category }
+    })
+    
+    form.value.ai_caption = response.caption
+    addToast({ type: 'success', message: 'Caption generated with AI!' })
+  } catch (err: any) {
+    globalError.value = err.data?.message || 'Failed to generate caption'
+    addToast({ type: 'error', message: 'Failed to generate caption' })
+  } finally {
+    isGeneratingCaption.value = false
+  }
+}
+
+const copyCaption = () => {
+  if (form.value.ai_caption) {
+    navigator.clipboard.writeText(form.value.ai_caption)
+    addToast({ type: 'success', message: 'Caption copied to clipboard!' })
+  }
 }
 
 const save = async () => {
   try {
     errors.value = {}
-    
-    // Parse tags to array before validation to ensure we validate the raw object form correctly
-    // Wait, the schema expects strings for tags, so we parse tags AFTER zod validation.
     
     const parsed = schema.parse({
       ...form.value,
@@ -131,7 +171,6 @@ const save = async () => {
     
     isSaving.value = true
     
-    // Process tags string to array
     const tagsArray = parsed.tags ? parsed.tags.split(',').map(t => t.trim()).filter(Boolean) : []
     
     const dataToSave = { 
@@ -140,13 +179,13 @@ const save = async () => {
     }
 
     if (props.product) {
-      // Update
       const { error } = await supabase.from('products').update(dataToSave).eq('id', props.product.id)
       if (error) throw error
+      addToast({ type: 'success', message: 'Product updated successfully!' })
     } else {
-      // Insert
       const { error } = await supabase.from('products').insert(dataToSave)
       if (error) throw error
+      addToast({ type: 'success', message: 'Product created successfully!' })
     }
 
     emit('saved')
@@ -213,87 +252,133 @@ const save = async () => {
                   </div>
 
                   <!-- Body (Scrollable form) -->
-                  <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                  <div class="flex-1 overflow-y-auto p-6">
                     
-                    <div v-if="globalError" class="p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600 flex items-center gap-2">
+                    <div v-if="globalError" class="p-3 mb-6 rounded-lg bg-red-50 border border-red-100 text-sm text-red-600 flex items-center gap-2">
                       <X class="w-4 h-4 shrink-0" />
                       {{ globalError }}
                     </div>
 
-                    <!-- Image Upload -->
-                    <div class="space-y-1.5">
-                      <label class="block text-sm font-medium text-slate-700">Image</label>
-                      <div class="flex items-start gap-4">
-                        <div class="w-24 h-24 rounded-xl border border-slate-200 overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center relative group">
-                          <img v-if="form.image_url" :src="form.image_url" class="w-full h-full object-cover" />
-                          <ImageIcon v-else class="w-8 h-8 text-slate-300" />
-                          <div class="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <label class="cursor-pointer p-2 text-white hover:text-primary-200 transition-colors">
-                              <Upload class="w-5 h-5" />
-                              <input type="file" accept="image/*" class="hidden" @change="handleFileUpload" :disabled="isUploading">
-                            </label>
+                    <!-- Tabs Header -->
+                    <div class="flex items-center gap-6 border-b border-slate-200 mb-6">
+                      <button 
+                        @click.prevent="activeTab = 'public'"
+                        :class="['pb-3 px-1 text-sm font-semibold transition-colors border-b-2 cursor-pointer outline-none', activeTab === 'public' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300']"
+                      >
+                        Public Landing Page
+                      </button>
+                      <button 
+                        @click.prevent="activeTab = 'affiliate'"
+                        :class="['pb-3 px-1 text-sm font-semibold transition-colors border-b-2 cursor-pointer outline-none', activeTab === 'affiliate' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300']"
+                      >
+                        Konten Video Affiliate
+                      </button>
+                    </div>
+
+                    <!-- Tab 1: Public Landing Page -->
+                    <div v-show="activeTab === 'public'" class="space-y-6">
+
+                      <!-- Image Upload -->
+                      <div class="space-y-1.5">
+                        <label class="block text-sm font-medium text-slate-700">Image</label>
+                        <div class="flex items-start gap-4">
+                          <div class="w-24 h-24 rounded-xl border border-slate-200 overflow-hidden shrink-0 bg-slate-50 flex items-center justify-center relative group">
+                            <img v-if="form.image_url" :src="form.image_url" class="w-full h-full object-cover" />
+                            <ImageIcon v-else class="w-8 h-8 text-slate-300" />
+                            <div class="absolute inset-0 bg-slate-900/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <label class="cursor-pointer p-2 text-white hover:text-primary-200 transition-colors">
+                                <Upload class="w-5 h-5" />
+                                <input type="file" accept="image/*" class="hidden" @change="handleFileUpload" :disabled="isUploading">
+                              </label>
+                            </div>
+                          </div>
+                          <div class="flex-1 space-y-2">
+                            <UiInput v-model="form.image_url" placeholder="Or paste image URL here" :error="errors.image_url" />
+                            <p class="text-xs text-slate-500">Upload an image (max 2MB) atau paste direct image URL.</p>
+                            <div v-if="isUploading" class="flex items-center gap-2 text-sm text-primary-600 font-medium">
+                              <Loader2 class="w-4 h-4 animate-spin" /> Uploading...
+                            </div>
                           </div>
                         </div>
-                        <div class="flex-1 space-y-2">
-                          <UiInput v-model="form.image_url" placeholder="Or paste image URL here" :error="errors.image_url" />
-                          <p class="text-xs text-slate-500">Upload an image (max 2MB) or paste a direct image URL.</p>
-                          <div v-if="isUploading" class="flex items-center gap-2 text-sm text-primary-600 font-medium">
-                            <Loader2 class="w-4 h-4 animate-spin" /> Uploading...
+                      </div>
+
+                      <div class="grid grid-cols-1 gap-6">
+                        <UiInput label="Title *" v-model="form.title" placeholder="Product name" :error="errors.title" />
+                        
+                        <UiInput label="Slug *" v-model="form.slug" placeholder="product-slug" :error="errors.slug" />
+
+                        <div class="grid grid-cols-2 gap-4">
+                          <div class="space-y-1.5">
+                            <UiInput 
+                              label="Category"
+                              v-model="form.category" 
+                              list="categories-list" 
+                              placeholder="E.g. Electronics"
+                              :error="errors.category"
+                            />
+                            <datalist id="categories-list">
+                              <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
+                            </datalist>
                           </div>
+                          
+                          <UiInput label="Price (Rp)" v-model="form.price_text" placeholder="100.000" :error="errors.price_text" />
                         </div>
+
+                        <UiInput label="Affiliate URL" v-model="form.affiliate_url" placeholder="https://..." :error="errors.affiliate_url" />
+
+                        <div class="space-y-1.5">
+                          <label class="block text-sm font-medium text-slate-700">Short Description</label>
+                          <textarea 
+                            v-model="form.short_description" 
+                            rows="5" 
+                            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-primary-200 focus:border-primary-500 transition-all resize-none text-sm text-slate-900"
+                            placeholder="Brief description of the product"
+                          ></textarea>
+                          <p v-if="errors.short_description" class="text-xs text-red-500">{{ errors.short_description }}</p>
+                        </div>
+
+                        <div class="flex items-center gap-4 py-2">
+                          <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="form.is_active" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                            <span class="ml-3 text-sm font-medium text-slate-700">Active Status</span>
+                          </label>
+                        </div>
+                        
+                        <UiInput label="Sort Order" type="number" v-model="form.sort_order" :error="errors.sort_order" />
                       </div>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-6">
-                      <UiInput label="Title *" v-model="form.title" placeholder="Product name" :error="errors.title" />
-                      
-                      <UiInput label="Slug *" v-model="form.slug" placeholder="product-slug" :error="errors.slug" />
-
-                      <div class="grid grid-cols-2 gap-4">
+                    <!-- Tab 2: Konten Video Affiliate -->
+                    <div v-show="activeTab === 'affiliate'" class="space-y-6">
+                      <div class="grid grid-cols-1 gap-6">
                         <div class="space-y-1.5">
-                          <UiInput 
-                            label="Category"
-                            v-model="form.category" 
-                            list="categories-list" 
-                            placeholder="E.g. Electronics"
-                            :error="errors.category"
-                          />
-                          <datalist id="categories-list">
-                            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
-                          </datalist>
+                          <UiInput label="Google Drive Link" v-model="form.gdrive_link" placeholder="https://drive.google.com/..." :error="errors.gdrive_link" />
+                          <div v-if="form.gdrive_link" class="pt-1">
+                            <a :href="form.gdrive_link" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-primary-600 text-xs font-semibold rounded border border-slate-200 transition-colors shadow-sm">
+                              <HardDrive class="w-3.5 h-3.5" /> Buka Link Google Drive
+                            </a>
+                          </div>
                         </div>
-                        
-                        <UiInput label="Price (Rp)" v-model="form.price_text" placeholder="100.000" :error="errors.price_text" />
+
+                        <!-- AI Caption Generator -->
+                        <div class="space-y-1.5 p-4 bg-primary-50/50 rounded-xl border border-primary-100">
+                          <div class="flex items-center justify-between mb-2">
+                            <label class="block text-sm font-semibold text-slate-700">Auto Caption & Hashtags</label>
+                            <div class="flex items-center gap-2">
+                              <button @click.prevent="generateCaption" :disabled="isGeneratingCaption" class="text-xs font-semibold px-2 py-1.5 bg-primary-600 text-white hover:bg-primary-700 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                                <Loader2 v-if="isGeneratingCaption" class="w-3.5 h-3.5 animate-spin" />
+                                <Wand2 v-else class="w-3.5 h-3.5" /> 
+                                {{ isGeneratingCaption ? 'Generating...' : 'Generate' }}
+                              </button>
+                              <button v-if="form.ai_caption" @click.prevent="copyCaption" class="text-xs font-semibold px-2 py-1.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 shadow-sm rounded-md transition-colors flex items-center gap-1 cursor-pointer">
+                                <Copy class="w-3.5 h-3.5" /> Copy
+                              </button>
+                            </div>
+                          </div>
+                          <UiTextarea v-model="form.ai_caption" :rows="6" placeholder="Klik Generate untuk membuat caption otomatis berdasarkan judul dan deskripsi..." />
+                        </div>
                       </div>
-
-                      <UiInput label="Affiliate URL" v-model="form.affiliate_url" placeholder="https://..." :error="errors.affiliate_url" />
-
-                      <div class="space-y-1.5">
-                        <label class="block text-sm font-medium text-slate-700">Short Description</label>
-                        <textarea 
-                          v-model="form.short_description" 
-                          rows="3" 
-                          class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-3 focus:ring-primary-200 focus:border-primary-500 transition-all resize-none text-sm text-slate-900"
-                          placeholder="Brief description of the product"
-                        ></textarea>
-                        <p v-if="errors.short_description" class="text-xs text-red-500">{{ errors.short_description }}</p>
-                      </div>
-
-                      <div class="space-y-1.5" v-if="false">
-                        <UiInput label="Tags" v-model="form.tags" placeholder="tag1, tag2, tag3" :error="errors.tags" />
-                        <p class="text-xs text-slate-500">Comma separated</p>
-                      </div>
-
-                      <div class="flex items-center gap-4 py-2">
-                        <label class="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" v-model="form.is_active" class="sr-only peer">
-                          <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                          <span class="ml-3 text-sm font-medium text-slate-700">Active Status</span>
-                        </label>
-                      </div>
-                      
-                      <UiInput label="Sort Order" type="number" v-model="form.sort_order" :error="errors.sort_order" />
-
                     </div>
                   </div>
 
